@@ -266,7 +266,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.resp.bits.data := loadgen.data
     io.resp.bits.is_hella := rpq.io.deq.bits.is_hella
     when (rpq.io.deq.fire()) {
-      commit_line   := true.B // false.B
+      commit_line   := false.B
     }
       .elsewhen (rpq.io.empty && !commit_line)
     {
