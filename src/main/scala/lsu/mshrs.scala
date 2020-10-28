@@ -266,7 +266,8 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.resp.bits.data := loadgen.data
     io.resp.bits.is_hella := rpq.io.deq.bits.is_hella
     when (rpq.io.deq.fire()) {
-      commit_line   := false.B
+      //printf("replay queue dequeue fire\n")
+      commit_line   := false.B //true.B // false.B
     }
       .elsewhen (rpq.io.empty && !commit_line)
     {
@@ -321,6 +322,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       state := s_commit_ready
     }
   } .elsewhen (state === s_commit_ready) {
+    //  printf("state : s_commit_ready\n")
     //when( IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx) ) {
       state := s_commit_line
     //}
