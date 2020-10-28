@@ -323,9 +323,9 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     }
   } .elsewhen (state === s_commit_ready) {
     //  printf("state : s_commit_ready\n")
-    //when( IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx) ) {
+    when( IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx) ) {
       state := s_commit_line
-    //}
+    }
   } .elsewhen (state === s_commit_line) {
     io.lb_read.valid       := true.B
     io.lb_read.bits.id     := io.id
