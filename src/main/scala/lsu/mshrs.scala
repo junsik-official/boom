@@ -266,12 +266,13 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.resp.bits.data := loadgen.data
     io.resp.bits.is_hella := rpq.io.deq.bits.is_hella
     when (rpq.io.deq.fire()) {
-      when(IsKilledByBranch(io.brupdate,io.req.uop.br_mask)){
-          commit_line := false.B
+      when(io.req.uop.is_br || io.req.uop.is_jalr){
+        when(!IsKilledByBranch(io.brupdate,io.req.uop.br_mask)){
+          commit_line := true.B
+        }
+        .otherwise { commit_line := false.B }
       }
-      .otherwise{ 
-        commit_line   := true.B
-      }
+      .otherwise{ commit_line   := true.B }
     }
       .elsewhen (rpq.io.empty && !commit_line)
     {
