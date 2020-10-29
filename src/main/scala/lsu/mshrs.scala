@@ -216,7 +216,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       toAddress       = Cat(req_tag, req_idx) << blockOffBits,
       lgSize          = lgCacheBlockBytes.U,
       growPermissions = grow_param)._2
-    when (io.mem_acquire.fire()) {{
+    when (io.mem_acquire.fire()) {
       state := s_refill_resp
     }
   } .elsewhen (state === s_refill_resp) {
@@ -266,8 +266,12 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.resp.bits.data := loadgen.data
     io.resp.bits.is_hella := rpq.io.deq.bits.is_hella
     when (rpq.io.deq.fire()) {
-      when(io.req.uop.br_mask){commit_line := false.B}
-      .otherwise{ commit_line   := true.B} //commit cache line into Dcache data array flag
+      when(io.req.uop.br_mask){
+        commit_line := false.B
+      }
+      .otherwise{ 
+        commit_line   := true.B
+      }
     }
       .elsewhen (rpq.io.empty && !commit_line)
     {
