@@ -271,7 +271,6 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
           commit_line := false.B
         }
       }
-      //.elsewhen (io.req.uop.br_mask
       .otherwise{ commit_line   := true.B }
     }
       .elsewhen (rpq.io.empty && !commit_line)
@@ -327,9 +326,12 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       state := s_commit_ready
     }
   } .elsewhen (state === s_commit_ready) {
-      when(io.brupdate.b2.valid || io.req.uop.is_br || io.req.uop.is_jalr){
-        when(io.brupdate.b2.mispredict) { state := s_mem_finish_1}
-        .otherwise{ state := s_commit_line }
+      when(io.req.uop.is_br || io.req.uop.is_jalr){
+        /*when(io.brupdate.b2.valid){
+          when(io.brupdate.b2.mispredict) { state := s_mem_finish_1}
+          .otherwise{ state := s_commit_line }
+        }*/
+       state := s_mem_finish_1
       }
       .otherwise {
         state := s_commit_line
