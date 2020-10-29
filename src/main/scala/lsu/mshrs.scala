@@ -270,6 +270,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
         when(IsKilledByBranch(io.brupdate,io.req.uop.br_mask)){
           commit_line := false.B
         }
+        .otherwise {commit_line := true.B}
       }
       .otherwise{ commit_line   := true.B }
     }
@@ -326,13 +327,12 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       state := s_commit_ready
     }
   } .elsewhen (state === s_commit_ready) {
-      when(io.req.uop.is_br || io.req.uop.is_jalr){
-        /*when(io.brupdate.b2.valid){
-          when(io.brupdate.b2.mispredict) { state := s_mem_finish_1}
-          .otherwise{ state := s_commit_line }
-        }*/
-       state := s_mem_finish_1
+      when(io.req.uop.is_br || io.req.uop.is_jalr){   
+        when(io.brupdate.b2.valid){ state := s_commit_line}
+        .elsewhen (io.brupdate.b2.mispredict){ state := s_mem_finish_1 }
       }
+       //when(IsOlder(io.req.uop.rob_idx,io.rob_pnr_idx, io.rob_head_idx)) { state := s_commit_line }
+       //state := s_mem_finish_1
       .otherwise {
         state := s_commit_line
       }
