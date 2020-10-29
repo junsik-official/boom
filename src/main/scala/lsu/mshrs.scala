@@ -266,7 +266,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.resp.bits.data := loadgen.data
     io.resp.bits.is_hella := rpq.io.deq.bits.is_hella
     when (rpq.io.deq.fire()) {
-      when(IsKilledByBranch(io.brupdate,io.req.uop)){
+      when(IsKilledByBranch(io.brupdate,io.req.uop.br_mask)){
           commit_line := false.B
       }
       .otherwise{ 
