@@ -275,7 +275,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
         when(io.brupdate.b2.mispredict){
           commit_line := false.B
         }
-        otherwise{
+        .otherwise{
           commit_line := true.B
         }
       }
