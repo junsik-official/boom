@@ -267,10 +267,11 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.resp.bits.is_hella := rpq.io.deq.bits.is_hella
     when (rpq.io.deq.fire()) {
       when(io.req.uop.is_br || io.req.uop.is_jalr){
-        when(!IsKilledByBranch(io.brupdate,io.req.uop.br_mask)){
-          commit_line := true.B
+        when(IsKilledByBranch(io.brupdate,io.req.uop.br_mask)){
+          commit_line := false.B
         }
       }
+      //.elsewhen (io.req.uop.br_mask
       .otherwise{ commit_line   := true.B }
     }
       .elsewhen (rpq.io.empty && !commit_line)
@@ -326,10 +327,14 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       state := s_commit_ready
     }
   } .elsewhen (state === s_commit_ready) {
-    //  printf("state : s_commit_ready\n")
-    //when( IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx) ) {
-      state := s_commit_line
-    //}
+      when(io.brupdate.b2.valid || io.req.uop.is_br || io.req.uop.is_jalr){
+        when(io.brupdate.b2.mispredict) { state := s_mem_finish_1}
+        .otherwise{ state := s_commit_line }
+      }
+      .otherwise {
+        state := s_commit_line
+      }
+    }
   } .elsewhen (state === s_commit_line) {
     io.lb_read.valid       := true.B
     io.lb_read.bits.id     := io.id
