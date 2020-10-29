@@ -270,7 +270,6 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
         when(!IsKilledByBranch(io.brupdate,io.req.uop.br_mask)){
           commit_line := true.B
         }
-        .otherwise { commit_line := false.B }
       }
       .otherwise{ commit_line   := true.B }
     }
