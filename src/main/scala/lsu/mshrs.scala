@@ -334,7 +334,6 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       .otherwise {
         state := s_commit_line
       }
-    }
   } .elsewhen (state === s_commit_line) {
     io.lb_read.valid       := true.B
     io.lb_read.bits.id     := io.id
