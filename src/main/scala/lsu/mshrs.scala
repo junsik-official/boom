@@ -265,15 +265,15 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.resp.bits.uop  := rpq.io.deq.bits.uop
     io.resp.bits.data := loadgen.data
     io.resp.bits.is_hella := rpq.io.deq.bits.is_hella
+    
     when (rpq.io.deq.fire()) {
-      when(io.req.uop.is_br || io.req.uop.is_jalr){
-        when(IsKilledByBranch(io.brupdate,io.req.uop.br_mask)){
-          commit_line := false.B
-        }
-        .otherwise {commit_line := true.B}
-      }
-      .otherwise{ commit_line   := true.B }
+      // When request is killed by branch misprediction, do not commit.
+      // otherwise, move to next state.
+      when(IsKilledByBranch(io.brupdate,io.req.uop.br_mask)) { commit_line := false.B }
+      .otherwise { commit_line := true.B }
     }
+    
+      
       .elsewhen (rpq.io.empty && !commit_line)
     {
       when (!rpq.io.enq.fire()) {
@@ -327,23 +327,27 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       state := s_commit_ready
     }
   } .elsewhen (state === s_commit_ready) {
-      when(io.req.uop.is_br || io.req.uop.is_jalr){   
       
-      // using branch resolution
-      // when(io.brupdate.b2.valid){ state := s_commit_line}
-      //  .elsewhen (io.brupdate.b2.mispredict){ state := s_mem_finish_1 }
+      //Old enough to commit : not killed by branch -> commit
+      //                           killed by branch -> not commit
+      //when (IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx)) {
+        when(IsKilledByBranch(io.brupdate, io.req.uop.br_mask)) { state := s_mem_finish_1 }
+        .otherwise { state := s_commit_line }
       //}
       
 
-      // using IsOlder and pnr index
-        when(IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx)) { state := s_commit_line }
-       .elsewhen (IsKilledByBranch(io.brupdate,io.req.uop.br_mask) || io.brupdate.b2.mispredict ){ state := s_mem_finish_1 }
-      } 
+      // using branch resolution
+      //when (io.brupdate.b2.mispredict){ state := s_mem_finish_1 }
+      //.elsewhen (io.brupdate.b2.taken) {state := s_commit_line }
+      
       
 
-      .otherwise {
-        state := s_commit_line
-      }
+      // using IsOlder and pnr index
+      //  when(IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx)) { state := s_commit_line }
+      // .elsewhen (IsKilledByBranch(io.brupdate,io.req.uop.br_mask) || io.brupdate.b2.mispredict ){ state := s_mem_finish_1 }
+      //} 
+      
+
   } .elsewhen (state === s_commit_line) {
     io.lb_read.valid       := true.B
     io.lb_read.bits.id     := io.id
