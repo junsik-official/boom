@@ -103,7 +103,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   // s_meta_write_req  : Write the metadata for new cache lne
   // s_meta_write_resp :
 
-  val s_invalid :: s_refill_req :: s_refill_resp :: s_drain_rpq_loads :: s_meta_read :: s_meta_resp_1 :: s_meta_resp_2 :: s_meta_clear :: s_wb_meta_read :: s_wb_req :: s_wb_resp :: s_commit_ready :: s_commit_line :: s_drain_rpq :: s_meta_write_req :: s_mem_finish_1 :: s_mem_finish_2 :: s_prefetched :: s_prefetch :: Nil = Enum(19)
+  val s_invalid :: s_refill_req :: s_refill_resp :: s_drain_rpq_loads_ready :: s_drain_rpq_loads :: s_meta_read :: s_meta_resp_1 :: s_meta_resp_2 :: s_meta_clear :: s_wb_meta_read :: s_wb_req :: s_wb_resp :: s_commit_ready :: s_commit_line :: s_drain_rpq :: s_meta_write_req :: s_mem_finish_1 :: s_mem_finish_2 :: s_prefetched :: s_prefetch :: Nil = Enum(20)
   val state = RegInit(s_invalid)
 
   val req     = Reg(new BoomDCacheReqInternal)
@@ -134,6 +134,9 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   rpq.io.enq.bits  := io.req
   rpq.io.deq.ready := false.B
 
+  //val is_non_speculative := IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx)
+  val commit_line_valid = Reg(Bool()) 
+  val ready_round = RegInit(1.U(5.W))
 
   val grantack = Reg(Valid(new TLBundleE(edge.bundle)))
   val refill_ctr  = Reg(UInt(log2Ceil(cacheDataBeats).W))
@@ -236,11 +239,29 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     when (refill_done) {
       grantack.valid := edge.isRequest(io.mem_grant.bits)
       grantack.bits := edge.GrantAck(io.mem_grant.bits)
-      state := Mux(grant_had_data, s_drain_rpq_loads, s_drain_rpq)
+      state := Mux(grant_had_data, s_drain_rpq_loads_ready, s_drain_rpq)
       assert(!(!grant_had_data && req_needs_wb))
       commit_line := false.B
       new_coh := coh_on_grant
 
+      commit_line_valid := false.B
+
+    }
+  } .elsewhen (state === s_drain_rpq_loads_ready) {
+   
+    when (io.req.uop.br_mask === 0.U){
+      commit_line_valid := true.B
+      state := s_drain_rpq_loads
+    }
+    .elsewhen (io.req.uop.bits.br_mask =/= 0.U){
+      when( IsOlder(io.brupdate.b2.uop.rob_idx, io.req.uop.rob_idx, io.rob_head_idx) && io.brupdate.b2.mispredict) {
+        commit_line_valid := false.B
+        state := s_drain_rpq_loads
+      }
+      .otherwise { 
+        commit_line_valid := true.B
+        state := s_drain_rpq_loads
+      }
     }
   } .elsewhen (state === s_drain_rpq_loads) {
     val drain_load = (isRead(rpq.io.deq.bits.uop.mem_cmd) &&
@@ -267,15 +288,11 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.resp.bits.is_hella := rpq.io.deq.bits.is_hella
     
     when (rpq.io.deq.fire()) {
-      // When request is killed by branch misprediction, do not commit.
-      // otherwise, move to next state.
-      when(IsKilledByBranch(io.brupdate,io.req.uop.br_mask)) { commit_line := false.B }
-      .otherwise { commit_line := true.B }
-    }
-    
       
-      .elsewhen (rpq.io.empty && !commit_line)
-    {
+      when(commit_line_valid) { commit_line := true.B }
+      .otherwise { commit_line := false.B }
+
+    } .elsewhen (rpq.io.empty && !commit_line) {
       when (!rpq.io.enq.fire()) {
         state := s_mem_finish_1
         finish_to_prefetch := enablePrefetching.B
@@ -299,7 +316,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   } .elsewhen (state === s_meta_resp_2) {
     val needs_wb = io.meta_resp.bits.coh.onCacheControl(M_FLUSH)._1
     state := Mux(!io.meta_resp.valid, s_meta_read, // Prober could have nack'd this read
-             Mux(needs_wb, s_meta_clear, s_commit_ready))
+             Mux(needs_wb, s_meta_clear, s_commit_line))
   } .elsewhen (state === s_meta_clear) {
     io.meta_write.valid         := true.B
     io.meta_write.bits.idx      := req_idx
@@ -324,30 +341,8 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     }
   } .elsewhen (state === s_wb_resp) {
     when (io.wb_resp) {
-      state := s_commit_ready
+      state := s_commit_line
     }
-  } .elsewhen (state === s_commit_ready) {
-      
-      //Old enough to commit : not killed by branch -> commit
-      //                           killed by branch -> not commit
-      //when (IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx)) {
-        when(IsKilledByBranch(io.brupdate, io.req.uop.br_mask)) { state := s_mem_finish_1 }
-        .otherwise { state := s_commit_line }
-      //}
-      
-
-      // using branch resolution
-      //when (io.brupdate.b2.mispredict){ state := s_mem_finish_1 }
-      //.elsewhen (io.brupdate.b2.taken) {state := s_commit_line }
-      
-      
-
-      // using IsOlder and pnr index
-      //  when(IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx)) { state := s_commit_line }
-      // .elsewhen (IsKilledByBranch(io.brupdate,io.req.uop.br_mask) || io.brupdate.b2.mispredict ){ state := s_mem_finish_1 }
-      //} 
-      
-
   } .elsewhen (state === s_commit_line) {
     io.lb_read.valid       := true.B
     io.lb_read.bits.id     := io.id
