@@ -253,15 +253,12 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       commit_line_valid := true.B
       state := s_drain_rpq_loads
     }
-    .elsewhen (io.req.uop.bits.br_mask =/= 0.U){
-      when( IsOlder(io.brupdate.b2.uop.rob_idx, io.req.uop.rob_idx, io.rob_head_idx) && io.brupdate.b2.mispredict) {
-        commit_line_valid := false.B
+    .otherwise { 
+      when( io.brupdate.b1.resolve_mask =/= 0.U) { 
         state := s_drain_rpq_loads
-      }
-      .otherwise { 
-        commit_line_valid := true.B
-        state := s_drain_rpq_loads
-      }
+        when( io.brupdate.b1.mispredict_mask =/= 0.U) { commit_line_valid := false.B }
+        .otherwise{ commit_line_valid := true.B }
+      } 
     }
   } .elsewhen (state === s_drain_rpq_loads) {
     val drain_load = (isRead(rpq.io.deq.bits.uop.mem_cmd) &&
