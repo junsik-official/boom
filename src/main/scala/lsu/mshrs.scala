@@ -103,7 +103,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   // s_meta_write_req  : Write the metadata for new cache lne
   // s_meta_write_resp :
 
-  val s_invalid :: s_refill_req :: s_refill_resp :: s_drain_rpq_loads_ready :: s_drain_rpq_loads :: s_meta_read :: s_meta_resp_1 :: s_meta_resp_2 :: s_meta_clear :: s_wb_meta_read :: s_wb_req :: s_wb_resp :: s_commit_ready :: s_commit_line :: s_drain_rpq :: s_meta_write_req :: s_mem_finish_1 :: s_mem_finish_2 :: s_prefetched :: s_prefetch :: Nil = Enum(20)
+  val s_invalid :: s_refill_req :: s_refill_resp :: s_drain_rpq_loads :: s_meta_read :: s_meta_resp_1 :: s_meta_resp_2 :: s_meta_clear :: s_wb_meta_read :: s_wb_req :: s_wb_resp :: s_drain_ready :: s_commit_line :: s_drain_rpq :: s_meta_write_req :: s_mem_finish_1 :: s_mem_finish_2 :: s_prefetched :: s_prefetch :: Nil = Enum(19)
   val state = RegInit(s_invalid)
 
   val req     = Reg(new BoomDCacheReqInternal)
@@ -111,6 +111,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   val req_tag = req.addr >> untagBits
   val req_block_addr = (req.addr >> blockOffBits) << blockOffBits
   val req_needs_wb = RegInit(false.B)
+
 
   val new_coh = RegInit(ClientMetadata.onReset)
   val (_, shrink_param, coh_on_clear) = req.old_meta.coh.onCacheControl(M_FLUSH)
@@ -134,13 +135,16 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   rpq.io.enq.bits  := io.req
   rpq.io.deq.ready := false.B
 
-  //val is_non_speculative := IsOlder(io.req.uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx)
-  val commit_line_valid = Reg(Bool()) 
-  val ready_round = RegInit(1.U(5.W))
-
+   
+  //version 1
+  //commit_line_valid : non-speculative : true / speculative : false
+  //when(io.req.uop.br_mask === 0.U) { commit_line_valid := true.B } .elsewhen ( io.brupdate.b1.resolve_mask =/= 0.U ) { when (io.brupdate.b2.mispredict) { commit_line_valid := false.B } .otherwise { commit_line_valid := true.B } }
+  
+  val commit_line_valid = Reg(Bool())
+  val commit_line = Reg(Bool())
+  
   val grantack = Reg(Valid(new TLBundleE(edge.bundle)))
   val refill_ctr  = Reg(UInt(log2Ceil(cacheDataBeats).W))
-  val commit_line = Reg(Bool())
   val grant_had_data = Reg(Bool())
   val finish_to_prefetch = Reg(Bool())
 
@@ -212,6 +216,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       state := handle_pri_req(state)
     }
   } .elsewhen (state === s_refill_req) {
+      
     io.mem_acquire.valid := true.B
     // TODO: Use AcquirePerm if just doing permissions acquire
     io.mem_acquire.bits  := edge.AcquireBlock(
@@ -239,44 +244,27 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     when (refill_done) {
       grantack.valid := edge.isRequest(io.mem_grant.bits)
       grantack.bits := edge.GrantAck(io.mem_grant.bits)
-      state := Mux(grant_had_data, s_drain_rpq_loads_ready, s_drain_rpq)
+      state := Mux(grant_had_data, s_drain_ready, s_drain_rpq)
       assert(!(!grant_had_data && req_needs_wb))
       commit_line := false.B
+      commit_line_valid := false.B
       new_coh := coh_on_grant
 
-      commit_line_valid := false.B
-
     }
-  } .elsewhen (state === s_drain_rpq_loads_ready) {
+  } .elsewhen (state === s_drain_ready) {
+     
+    // sueccess code
+    when( ( (io.req.uop.br_mask & ~0.U(maxBrCount.W)) === 0.U  ) &&
+          ( (io.brupdate.b1.resolve_mask & ~0.U(maxBrCount.W) ) =/= 0.U ) && 
+          ( (io.brupdate.b1.mispredict_mask & ~0.U(maxBrCount.W)) === 0.U ) 
+          ) { commit_line_valid := true.B }
+    .otherwise { commit_line_valid := false.B }
+ 
    
-    when (io.req.uop.br_mask === 0.U){
-      commit_line_valid := true.B
-      state := s_drain_rpq_loads
-    }
-    // version 1
-  /*  .otherwise { 
-      when( io.brupdate.b1.resolve_mask =/= 0.U) { 
-        state := s_drain_rpq_loads
-        when( io.brupdate.b1.mispredict_mask =/= 0.U) { commit_line_valid := false.B }
-        .otherwise{ commit_line_valid := true.B }
-      } 
-    }
-  */  
-    // version 2
-    .otherwise {
-      when( io.brupdate.b1.resolve_mask =/= 0.U) {
-        when( IsOlder(io.brupdate.b2.uop.rob_idx, io.req.uop.rob_idx, io.rob_head_idx) && io.brupdate.b2.mispredict ) {
-          state := s_drain_rpq_loads
-          commit_line_valid := false.B
-        }
-        .otherwise {
-          state := s_drain_rpq_loads
-          commit_line_valid := true.B
-        }
-      }
-    }
+    state := s_drain_rpq_loads
 
-  } .elsewhen (state === s_drain_rpq_loads) {
+
+   } .elsewhen (state === s_drain_rpq_loads) {
     val drain_load = (isRead(rpq.io.deq.bits.uop.mem_cmd) &&
                      !isWrite(rpq.io.deq.bits.uop.mem_cmd) &&
                      (rpq.io.deq.bits.uop.mem_cmd =/= M_XLR)) // LR should go through replay
@@ -301,10 +289,10 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.resp.bits.is_hella := rpq.io.deq.bits.is_hella
     
     when (rpq.io.deq.fire()) {
-      
-      when(commit_line_valid) { commit_line := true.B }
+     
+      when(commit_line_valid){ commit_line := true.B }
       .otherwise { commit_line := false.B }
-
+    
     } .elsewhen (rpq.io.empty && !commit_line) {
       when (!rpq.io.enq.fire()) {
         state := s_mem_finish_1
@@ -366,6 +354,8 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.refill.bits.way_en := req.way_en
     io.refill.bits.wmask  := ~(0.U(rowWords.W))
     io.refill.bits.data   := io.lb_resp
+
+
     when (io.refill.fire()) {
       refill_ctr := refill_ctr + 1.U
       when (refill_ctr === (cacheDataBeats - 1).U) {
@@ -398,6 +388,8 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   } .elsewhen (state === s_mem_finish_1) {
     io.mem_finish.valid := grantack.valid
     io.mem_finish.bits  := grantack.bits
+  
+
     when (io.mem_finish.fire() || !grantack.valid) {
       grantack.valid := false.B
       state := s_mem_finish_2
