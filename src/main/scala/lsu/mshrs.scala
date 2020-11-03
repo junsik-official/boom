@@ -254,12 +254,17 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   } .elsewhen (state === s_drain_ready) {
      
     // sueccess code
-    when( ( (io.req.uop.br_mask & ~0.U(maxBrCount.W)) === 0.U  ) &&
+ /*   when( ( (io.req.uop.br_mask & ~0.U(maxBrCount.W)) === 0.U  ) &&
           ( (io.brupdate.b1.resolve_mask & ~0.U(maxBrCount.W) ) =/= 0.U ) && 
           ( (io.brupdate.b1.mispredict_mask & ~0.U(maxBrCount.W)) === 0.U ) 
           ) { commit_line_valid := true.B }
     .otherwise { commit_line_valid := false.B }
- 
+ */
+
+    when( rpq.io.deq.valid && 
+          isRead(rpq.io.deq.bits.uop.mem_cmd) &&
+          (rpq.io.deq.bits.uop.br_mask === 0.U) ) { commit_line_valid := true.B }
+    .otherwise { commit_line_valid := false.B }
    
     state := s_drain_rpq_loads
 
