@@ -25,6 +25,7 @@ External Debug |√
 
 ## How to implement BOOMCORE by using Verilator
 
+```
 In Ubuntu/Debian-based platforms (Ubuntu)
 
 mkdir Spectre_Boom
@@ -84,7 +85,7 @@ cd ../sims/verilator/
 make CONFIG=SmallBoomConfig
 ./simulator-chipyard-SmallBoomConfig spectre_var1/bin/condBranchMispred.riscv
 
-
+```
 
 
 ## Documentation and Information
