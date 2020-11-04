@@ -92,11 +92,17 @@ make CONFIG=SmallBoomConfig
 
 ## Built With
 
+* JUNSIK SHIN <br />
+undergraduate student <br />
+Electrical and Computer Engineering <br />
+Seoul National University <br />
+
 * Jaewoong Sim <br />
 Assistant Professor <br />
 Electrical and Computer Engineering <br />
 Seoul National University <br />
 Room 1007, Bldg. 301 <br />
+
 
 
 ## License
