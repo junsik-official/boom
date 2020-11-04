@@ -1,29 +1,17 @@
-The Berkeley Out-of-Order RISC-V Processor [![CircleCI](https://circleci.com/gh/riscv-boom/riscv-boom.svg?style=svg)](https://circleci.com/gh/riscv-boom/riscv-boom)
-====================================================================================================================================================================
+# Spectre Attack Resistant BOOM
 
-The Berkeley Out-of-Order Machine (BOOM) is a synthesizable and parameterizable open source RV64GC RISC-V core written in the
-[Chisel](https://chisel.eecs.berkeley.edu/) hardware construction language. While BOOM is primarily ASIC optimized, it is also usable on FPGAs.
-We support the FireSim flow to run BOOM at 90+ MHz on FPGAs on Amazon EC2 F1. Created at the University of California,
-Berkeley in the [Berkeley Architecture Research](https://bar.eecs.berkeley.edu/) group, its focus is to create a high
-performance, synthesizable, and parameterizable core for architecture research.
+Modern processor는 성능을 향상시키기 위해 Out of order execution, Specualtive Execution과 같은 방법을 사용한다. 
+성능면에서는 큰 변화를 일으켰지만, 성능이 좋아진만큼 예상치못한 security에 문제가 생겼다. 
+Misprediction이 발생한 경우 micro-architecture state는 prediction이전 상태로 restore를 해서 programmer입장에서는 mispredicted instruction들의 결과를 확인할 수 없다. 
+그러나, Cache state는 misprediction handling하는 과정에서 restore를 하지 않아 FLUSH+RELOAD와 같은 cache side channel attack을 통해 data를 빼낼 수 있게 되었다. 
 
-Feature | BOOM
---- | ---
-ISA | RISC-V (RV64GC)
-Synthesizable |√
-FPGA |√
-Parameterized |√
-Floating Point (IEEE 754-2008) |√
-Atomic Memory Op Support |√
-Caches |√
-Virtual Memory |√
-Boots Linux |√
-Boots Fedora |√
-Privileged Arch v1.11 |√
-External Debug |√
+이를 막기 위해 Data Cache miss를 handling하는 MSHR의 동작을 수정하여 SAR-BOOM (Spectre Attack Resistant BOOM)을 구현하였다.  
+SAR-BOOM은 2가지 version으로 구현되었는데, 
+SAR-1 BOOM은 MSHR의 Bypass state에서 branch mask를 통해 commit여부를 판단하고, 
+SAR-2 BOOM은 Speculation check state에서 PNR index와 branch mask를 통해 non-speculative해질 때까지 기다린 다음에 commit을 한다. 
 
 
-## How to implement BOOMCORE by using Verilator
+## Getting Started
 
 ```
 In Ubuntu/Debian-based platforms (Ubuntu)
@@ -67,6 +55,15 @@ source ./env.sh
 cd sims/verilator
 make CONFIG=SmallBoomConfig
 
+```
+
+
+## Running the Spectre Attack var1 on BOOM core
+
+Spectre Attack variant 1에 대한 공격을 수행
+
+```
+
 # boom attack binary codes
 git clone https://github.com/Junsik-Shin/spectre_var1.git
 cd spectre_var1
@@ -76,7 +73,11 @@ cd ..
 # run simulator
 ./simulator-chipyard-SmallBoomConfig spectre_var1/bin/condBranchMispred.riscv
 
+```
 
+## Running the Spectre Attack var1 on SAR-2 BOOM core
+
+```
 # change boom core into spectre-resistant boom core
 cd ../../generators/
 mv boom/ boom_initial/
@@ -88,14 +89,28 @@ make CONFIG=SmallBoomConfig
 ```
 
 
+
+## Built With
+
+* Jaewoong Sim
+Assistant Professor
+Electrical and Computer Engineering
+Seoul National University
+Room 1007, Bldg. 301
+
+
+## License
+
+The Berkeley Out-of-Order RISC-V Processor [![CircleCI](https://circleci.com/gh/riscv-boom/riscv-boom.svg?style=svg)](https://circleci.com/gh/riscv-boom/riscv-boom)
+====================================================================================================================================================================
+
+The Berkeley Out-of-Order Machine (BOOM) is a synthesizable and parameterizable open source RV64GC RISC-V core written in the
+[Chisel](https://chisel.eecs.berkeley.edu/) hardware construction language. While BOOM is primarily ASIC optimized, it is also usable on FPGAs.
+We support the FireSim flow to run BOOM at 90+ MHz on FPGAs on Amazon EC2 F1. Created at the University of California,
+Berkeley in the [Berkeley Architecture Research](https://bar.eecs.berkeley.edu/) group, its focus is to create a high
+performance, synthesizable, and parameterizable core for architecture research.
+
 ## Documentation and Information
 
 Please check out the BOOM website @ https://boom-core.org for the most up-to-date information.
 It contains links to the mailing lists, documentation, design spec., publications and more!
-
-**Website:** (www.boom-core.org)
-**Mailing List** (https://groups.google.com/forum/#!forum/riscv-boom)
-
-## Contributing
-
-Please see [CONTRIB\_AND\_STYLE.md](/CONTRIB_AND_STYLE.md)
