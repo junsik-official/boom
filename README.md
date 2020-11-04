@@ -22,31 +22,78 @@ Boots Fedora |√
 Privileged Arch v1.11 |√
 External Debug |√
 
+
+## How to implement BOOMCORE by using Verilator
+
+In Ubuntu/Debian-based platforms (Ubuntu)
+
+mkdir Spectre_Boom
+cd Spectre_Boom
+set -ex
+sudo apt-get install -y build-essential bison flex
+sudo apt-get install -y libgmp-dev libmpfr-dev libmpc-dev zlib1g-dev vim git default-jdk default-jre
+echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
+curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add
+sudo apt-get update
+sudo apt-get install -y sbt
+sudo apt-get install -y texinfo gengetopt
+sudo apt-get install -y libexpat1-dev libusb-dev libncurses5-dev cmake
+sudo apt-get install -y python3.6 patch diffstat texi2html texinfo subversion chrpath git wget
+sudo apt-get install -y libgtk-3-dev gettext
+sudo apt-get install -y python3-pip python3.6-dev rsync libguestfs-tools expat ctags
+sudo apt-get install -y device-tree-compiler
+
+# verilator
+git clone http://git.veripool.org/git/verilator
+cd verilator
+git checkout v4.034
+autoconf && ./configure && make -j16 && sudo make install
+cd ..
+
+# chipyard sources
+git clone https://github.com/ucb-bar/chipyard.git
+cd chipyard
+./scripts/init-submodules-no-riscv-tools.sh
+
+# building a toolchain. It takes more than one hour.
+./scripts/build-toolchains.sh riscv-tools # for a normal risc-v toolchain
+
+# environment setup 
+source ./env.sh
+
+
+# make SmallBoomConfiguration with Verilator
+cd sims/verilator
+make CONFIG=SmallBoomConfig
+
+# boom attack binary codes
+git clone https://github.com/Junsik-Shin/spectre_var1.git
+cd spectre_var1
+make
+cd ..
+
+# run simulator
+./simulator-chipyard-SmallBoomConfig spectre_var1/bin/condBranchMispred.riscv
+
+
+# change boom core into spectre-resistant boom core
+cd ../../generators/
+mv boom/ boom_initial/
+git clone https://github.com/Junsik-Shin/boom.git
+cd ../sims/verilator/
+make CONFIG=SmallBoomConfig
+./simulator-chipyard-SmallBoomConfig spectre_var1/bin/condBranchMispred.riscv
+
+
+
+
 ## Documentation and Information
 
 Please check out the BOOM website @ https://boom-core.org for the most up-to-date information.
 It contains links to the mailing lists, documentation, design spec., publications and more!
 
 **Website:** (www.boom-core.org)
-
 **Mailing List** (https://groups.google.com/forum/#!forum/riscv-boom)
-
-## Important!
-
-This repository is **NOT A SELF-RUNNING** repository. To instantiate a BOOM core, please use the
-[Chipyard](https://github.com/ucb-bar/chipyard) SoC generator.
-
-The current hash of Chipyard that works with this repository is located in the `CHIPYARD.hash`
-file in the top level directory of this repository. This file is mainly used for CI purposes, since
-Chipyard should follow the correct version of rocket-chip. For most users, you should be able to
-clone Chipyard separately and follow the default Chipyard instructions (without having to use the `.hash` file).
-
-## Disclaimer!
-
-The RISC-V Privileged ISA, Platform, and Debug specs are still in flux. BOOM will do its best to
-stay up-to-date with it!
-
-BOOM is a work-in-progress and remains in active development.
 
 ## Contributing
 
