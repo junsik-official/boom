@@ -7,7 +7,7 @@ Misprediction이 발생한 경우 micro-architecture state는 prediction이전 �
 
 이를 막기 위해 Data Cache miss를 handling하는 MSHR의 동작을 수정하여 SAR-BOOM (Spectre Attack Resistant BOOM)을 구현하였다.  <br />
 SAR-BOOM은 2가지 version으로 구현되었는데, <br />
-SAR-1 BOOM은 MSHR의 Bypass state에서 branch mask를 통해 commit여부를 판단하고, <br />
+SAR-1 BOOM은 MSHR의 Bypass state에서 branch mask를 통해 commit여부를 판단하고,
 SAR-2 BOOM은 Speculation check state에서 PNR index와 branch mask를 통해 non-speculative해질 때까지 기다린 다음에 commit을 한다. <br />
 
 
