@@ -1,14 +1,14 @@
 # Spectre Attack Resistant BOOM
 
-Modern processor는 성능을 향상시키기 위해 Out of order execution, Specualtive Execution과 같은 방법을 사용한다. 
-성능면에서는 큰 변화를 일으켰지만, 성능이 좋아진만큼 예상치못한 security에 문제가 생겼다. 
-Misprediction이 발생한 경우 micro-architecture state는 prediction이전 상태로 restore를 해서 programmer입장에서는 mispredicted instruction들의 결과를 확인할 수 없다. 
-그러나, Cache state는 misprediction handling하는 과정에서 restore를 하지 않아 FLUSH+RELOAD와 같은 cache side channel attack을 통해 data를 빼낼 수 있게 되었다. 
+Modern processor는 성능을 향상시키기 위해 Out of order execution, Specualtive Execution과 같은 방법을 사용한다. <br />
+성능면에서는 큰 변화를 일으켰지만, 성능이 좋아진만큼 예상치못한 security에 문제가 생겼다. <br />
+Misprediction이 발생한 경우 micro-architecture state는 prediction이전 상태로 restore를 해서 programmer입장에서는 mispredicted instruction들의 결과를 확인할 수 없다. <br />
+그러나, Cache state는 misprediction handling하는 과정에서 restore를 하지 않아 FLUSH+RELOAD와 같은 cache side channel attack을 통해 data를 빼낼 수 있게 되었다. <br />
 
-이를 막기 위해 Data Cache miss를 handling하는 MSHR의 동작을 수정하여 SAR-BOOM (Spectre Attack Resistant BOOM)을 구현하였다.  
-SAR-BOOM은 2가지 version으로 구현되었는데, 
-SAR-1 BOOM은 MSHR의 Bypass state에서 branch mask를 통해 commit여부를 판단하고, 
-SAR-2 BOOM은 Speculation check state에서 PNR index와 branch mask를 통해 non-speculative해질 때까지 기다린 다음에 commit을 한다. 
+이를 막기 위해 Data Cache miss를 handling하는 MSHR의 동작을 수정하여 SAR-BOOM (Spectre Attack Resistant BOOM)을 구현하였다.  <br />
+SAR-BOOM은 2가지 version으로 구현되었는데, <br />
+SAR-1 BOOM은 MSHR의 Bypass state에서 branch mask를 통해 commit여부를 판단하고, <br />
+SAR-2 BOOM은 Speculation check state에서 PNR index와 branch mask를 통해 non-speculative해질 때까지 기다린 다음에 commit을 한다. <br />
 
 
 ## Getting Started
@@ -92,11 +92,11 @@ make CONFIG=SmallBoomConfig
 
 ## Built With
 
-* Jaewoong Sim
-Assistant Professor
-Electrical and Computer Engineering
-Seoul National University
-Room 1007, Bldg. 301
+* Jaewoong Sim <br />
+Assistant Professor <br />
+Electrical and Computer Engineering <br />
+Seoul National University <br />
+Room 1007, Bldg. 301 <br />
 
 
 ## License
