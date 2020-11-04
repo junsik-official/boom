@@ -136,10 +136,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   rpq.io.deq.ready := false.B
 
    
-  //version 1
-  //commit_line_valid : non-speculative : true / speculative : false
-  //when(io.req.uop.br_mask === 0.U) { commit_line_valid := true.B } .elsewhen ( io.brupdate.b1.resolve_mask =/= 0.U ) { when (io.brupdate.b2.mispredict) { commit_line_valid := false.B } .otherwise { commit_line_valid := true.B } }
-  
+ 
   val commit_line_valid = Reg(Bool())
   val commit_line = Reg(Bool())
   
@@ -253,21 +250,15 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     }
   } .elsewhen (state === s_drain_ready) {
      
-    // sueccess code
- /*   when( ( (io.req.uop.br_mask & ~0.U(maxBrCount.W)) === 0.U  ) &&
-          ( (io.brupdate.b1.resolve_mask & ~0.U(maxBrCount.W) ) =/= 0.U ) && 
-          ( (io.brupdate.b1.mispredict_mask & ~0.U(maxBrCount.W)) === 0.U ) 
-          ) { commit_line_valid := true.B }
-    .otherwise { commit_line_valid := false.B }
- */
    // SAR-1 BOOM
    /* when( rpq.io.deq.valid && 
           isRead(rpq.io.deq.bits.uop.mem_cmd) &&
           (rpq.io.deq.bits.uop.br_mask === 0.U) ) { commit_line_valid := true.B }
     .otherwise { commit_line_valid := false.B }
    
-  sd  state := s_drain_rpq_loads
-*/
+    state := s_drain_rpq_loads
+  */
+    
    // SAR-2 BOOM
     when( rpq.io.deq.valid ) {
       val rpq_deq_uop = UpdateBrMask(io.brupdate, rpq.io.deq.bits.uop)
