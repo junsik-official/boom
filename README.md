@@ -61,7 +61,6 @@ make CONFIG=SmallBoomConfig
 
 ## Running the Spectre Attack var1 on BOOM core
 
-Spectre Attack variant 1에 대한 공격을 수행
 
 ```
 
