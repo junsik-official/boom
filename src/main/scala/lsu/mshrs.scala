@@ -260,7 +260,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
           ) { commit_line_valid := true.B }
     .otherwise { commit_line_valid := false.B }
  */
-   // correct code
+   // SAR-1 BOOM
    /* when( rpq.io.deq.valid && 
           isRead(rpq.io.deq.bits.uop.mem_cmd) &&
           (rpq.io.deq.bits.uop.br_mask === 0.U) ) { commit_line_valid := true.B }
@@ -268,7 +268,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
    
   sd  state := s_drain_rpq_loads
 */
-   // test code
+   // SAR-2 BOOM
     when( rpq.io.deq.valid ) {
       val rpq_deq_uop = UpdateBrMask(io.brupdate, rpq.io.deq.bits.uop)
       when (rpq_deq_uop.br_mask === 0.U){
