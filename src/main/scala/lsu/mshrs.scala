@@ -260,13 +260,36 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
           ) { commit_line_valid := true.B }
     .otherwise { commit_line_valid := false.B }
  */
-
-    when( rpq.io.deq.valid && 
+   // correct code
+   /* when( rpq.io.deq.valid && 
           isRead(rpq.io.deq.bits.uop.mem_cmd) &&
           (rpq.io.deq.bits.uop.br_mask === 0.U) ) { commit_line_valid := true.B }
     .otherwise { commit_line_valid := false.B }
    
-    state := s_drain_rpq_loads
+  sd  state := s_drain_rpq_loads
+*/
+   // test code
+    when( rpq.io.deq.valid ) {
+      val rpq_deq_uop = UpdateBrMask(io.brupdate, rpq.io.deq.bits.uop)
+      when (rpq_deq_uop.br_mask === 0.U){
+        state := s_drain_rpq_loads
+        commit_line_valid := true.B
+      }
+      .otherwise{
+        when( IsKilledByBranch(io.brupdate,rpq_deq_uop)){
+          state := s_drain_rpq_loads
+          commit_line_valid := false.B
+        }
+        .elsewhen (IsOlder(rpq_deq_uop.rob_idx, io.rob_pnr_idx, io.rob_head_idx) ) {
+          state := s_drain_rpq_loads
+          commit_line_valid := true.B
+        }
+      }
+    }
+    .otherwise {
+      state := s_drain_rpq_loads
+      commit_line_valid := false.B
+    }
 
 
    } .elsewhen (state === s_drain_rpq_loads) {
